@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'anafi_gui = anafi_gui.gui_node:main',
+            'image_display=anafi_gui.test:main',
         ],
     },
 )

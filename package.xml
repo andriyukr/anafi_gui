@@ -5,11 +5,15 @@
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="eee@todo.todo">eee</maintainer>
-  <license>TODO: License declaration</license>
+  <license>BSD</license>
 
+  
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>anafi_ros</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>image_transport</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
 
 
   <test_depend>ament_copyright</test_depend>

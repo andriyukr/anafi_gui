@@ -4,8 +4,9 @@ from PyQt6.QtMultimedia import *
 from PyQt6.QtMultimediaWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon,QPixmap,QImage
 from anafi_gui.custom_widgets import *
+from anafi_gui.gui_node import *
 from rclpy.node import Node
 
 from timeit import default_timer as timer
@@ -23,7 +24,8 @@ from std_srvs.srv import Trigger, SetBool
 from cv_bridge import CvBridge, CvBridgeError
 from anafi_ros_interfaces.msg import PilotingCommand, MoveByCommand, MoveToCommand, CameraCommand, GimbalCommand
 from anafi_ros_interfaces.srv import PilotedPOI, FlightPlan, FollowMe, Location, Photo, Recording, String as StringSRV
-from anafi_autonomy.msg import KeyboardCameraCommand, KeyboardDroneCommand
+#from anafi_autonomy.msg import KeyboardCameraCommand, KeyboardDroneCommand
+from anafi_autonomy.msg import KeyboardCommand
 
 
 class UI(object):
@@ -48,7 +50,7 @@ class UI(object):
 		self.vstream_status_hlw.resize(default_width - 50, int(default_height / 2) - 50)
 
 		self.videostream_status_hl = QtWidgets.QHBoxLayout(self.vstream_status_hlw)
-		self.videostream_status_hl.setContentsMargins(5, 5, 5, 5)
+		#self.videostream_status_hl.setContentsMargins(1, 1, 1, 1)
 		# video stream area
 		self.buildVStreamSection(self.vstream_status_hlw)
 		# status area
@@ -118,8 +120,9 @@ class UI(object):
 		# link
 		self.link_info = StatusGroupBox(self.statusmain_gb, "Link: ", "<l.q.>")
 		self.link_info.setup(self.status_r2_hl)
+		self.link_info.setValue(0)
 
-		self.status_vl.addLayout(self.status_r2_hl)
+		self.status_vl.addLayout(self.status_r2_hl) 
 
 		# status r3
 		self.status_r3_hl = QtWidgets.QHBoxLayout()
@@ -159,16 +162,18 @@ class UI(object):
 		self.status_r5_hl = QtWidgets.QHBoxLayout()
 
 		# camera altitude
-		self.camera_altitude_info = StatusGroupBox(self.statusmain_gb, "Camera Altitude: ", "<cam. alt.>")
-		self.camera_altitude_info.setup(self.status_r5_hl)
+		self.gimbal_attitude_info = StatusGroupBox(self.statusmain_gb, "Gimbal Attitude: ", "<gim att.>")
+		self.gimbal_attitude_info.setup(self.status_r5_hl)
 
 		# zoom
 		self.zoom_info = StatusGroupBox(self.statusmain_gb, "Zoom: ", "<zoom>")
 		self.zoom_info.setup(self.status_r5_hl)
 
 		# storage
-		self.storage_info = StatusGroupBox(self.statusmain_gb, "Storage: ", "<storage>")
+		self.storage_info = StatusGroupBox(self.statusmain_gb, "Storage: ", "0")
 		self.storage_info.setup(self.status_r5_hl)
+		#self.storage_info.setValue(0)
+
 
 		self.status_vl.addLayout(self.status_r5_hl)
 
@@ -182,10 +187,12 @@ class UI(object):
 		# move by
 		self.move_by_info = StatusGroupBox(self.statusmain_gb, "Move By: ", "[<dx>, <dy>, <dz>, <dyaw>]")
 		self.move_by_info.setup(self.status_r6_hl)
+		self.move_by_info.setValue("-") #default starting 
 				
 		# move to
 		self.move_to_info = StatusGroupBox(self.statusmain_gb, "Move To: ", "[<lat.>, <lon.>, <alt.>, <head.>]")
 		self.move_to_info.setup(self.status_r6_hl)
+		self.move_to_info.setValue("-") #default starting 
 		# end r6
 
 		# end status
@@ -196,31 +203,18 @@ class UI(object):
 		self.vstream_gb.setProperty("class", "vstreamgb")
 		self.videostream_status_hl.addWidget(self.vstream_gb)
 		self.video_stream_vl = QtWidgets.QVBoxLayout(self.vstream_gb)
-
-		# video stream
-		self.media_player = QMediaPlayer()
-		self.video_widget = QVideoWidget(parent)
-		self.video_widget.setMinimumSize(640, 360)
-		self.video_widget.setMaximumSize(640, 360)
-		# self.media_player.setSource()) # TODO: set video source
-		self.media_player.setVideoOutput(self.video_widget)
-
+		
+		self.video_widget=QLabel()
+		self.video_widget.setStyleSheet('QLabel{background-color:red}')
+				
 		self.video_stream_vl.addWidget(self.video_widget, 1, QtCore.Qt.AlignmentFlag.AlignHCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
 
 		self.video_stream_hl = QtWidgets.QHBoxLayout()
-		self.video_stream_hl.setContentsMargins(5, 5, 5, 5)
-		vstream_button_s1 = QtWidgets.QSpacerItem(15, 10, QtWidgets.QSizePolicy.Policy.Minimum,
-																								  QtWidgets.QSizePolicy.Policy.Minimum)
-		self.video_stream_hl.addItem(vstream_button_s1)
+		self.video_buttons=QtWidgets.QVBoxLayout()
 
-		self.rgb_button = EnhancedButton(parent=self.vstream_gb, label="RGB", fixed_size=(120, 50), layout=self.video_stream_hl, property_class="vsbutton")
-		self.thermal_button = EnhancedButton(parent=self.vstream_gb, label="Thermal", fixed_size=(120, 50), layout=self.video_stream_hl, property_class="vsbutton")
-		self.blended_button = EnhancedButton(parent=self.vstream_gb, label="Blended", fixed_size=(120, 50), layout=self.video_stream_hl, property_class="vsbutton")
-		self.disparity_button = EnhancedButton(parent=self.vstream_gb, label="Disparity", fixed_size=(120, 50), layout=self.video_stream_hl, property_class="vsbutton")
-
-		# vstream buttons end
-		self.video_stream_vl.addLayout(self.video_stream_hl)
-
+	def ImageUpdateSlot(self, Image):
+		self.video_widget.setPixmap(QPixmap.fromImage(Image))
+		
 	def buildCommandsSection(self, parent:QtWidgets.QWidget):
 		self.commands_tabs = QtWidgets.QTabWidget(parent)
 		self.commands_tabs.setProperty("class", "commands")
@@ -582,51 +576,52 @@ class UI(object):
 
 	# Primary Commands
 	def arm_disarm_callback(self):
-		self.node.msg_keyboard_action.data = 1 # arm
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action)
+		self.node.msg_keyboard_command.drone_action= 1 # arm
+		
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 
 	def takeoff_land_callback(self):
 		if self.takeoff_land_button.isChecked():
-			self.node.msg_keyboard_action.data = 2 # takeoff
+			self.node.msg_keyboard_command.drone_action= 2 # takeoff
 		else:
-			self.node.msg_keyboard_action.data = 4 # land
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action)
+			self.node.msg_keyboard_command.drone_action= 4 # land
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 	
 	def halt_callback(self):
-		self.node.msg_keyboard_action.data = 3
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action)
+		self.node.msg_keyboard_command.drone_action= 3
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 
 	def photo_start_stop_callback(self):
-		self.node.msg_keyboard_camera_command = KeyboardCameraCommand()
+		self.node.msg_keyboard_command = KeyboardCommand()
 		if self.photo_startstop_button.isChecked():
-			self.node.msg_keyboard_camera_command.action = 1 # start photo
+			self.node.msg_keyboard_command.camera_action = 1 # start photo
 		else:
-			self.node.msg_keyboard_camera_command.action = 0  # TODO: input correct data for stop photo
-			self.node.pub_keyboard_camera_command.publish(self.node.msg_keyboard_camera_command)
+			self.node.msg_keyboard_command.camera_action = 0  # TODO: input correct data for stop photo
+			self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 
 	def video_start_stop_callback(self):
-		self.node.msg_keyboard_camera_command = KeyboardCameraCommand()
+		self.node.msg_keyboard_command = KeyboardCommand()
 		if self.video_startstop_button.isChecked():
-			self.node.msg_keyboard_camera_command.action = 2 # start recording
+			self.node.msg_keyboard_command.camera_action = 2 # start recording
 		else:
-			self.node.msg_keyboard_camera_command.action = 3 # stop recording
-		self.node.pub_keyboard_camera_command.publish(self.node.msg_keyboard_camera_command)
+			self.node.msg_keyboard_command.camera_action = 3 # stop recording
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 
 
 	def download_callback(self):
-		self.node.msg_keyboard_camera_command = KeyboardCameraCommand()
-		self.node.msg_keyboard_camera_command.action = 4
-		self.node.pub_keyboard_camera_command.publish(self.node.msg_keyboard_camera_command)
+		self.node.msg_keyboard_command = KeyboardCommand()
+		self.node.msg_keyboard_command.action = 4
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 		
 
 	def calibrate_callback(self):
-		self.node.msg_keyboard_action.data = 111
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action)
+		self.node.msg_keyboard_command.drone_action= 111
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 	
 	def reboot_callback(self):
-		self.node.msg_keyboard_action.data = 110
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action)
+		self.node.msg_keyboard_command.drone_action= 110
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command)
 	
 	def rth_callback(self):
-		self.node.msg_keyboard_action.data = 7
-		self.node.pub_keyboard_action.publish(self.node.msg_keyboard_action) 
+		self.node.msg_keyboard_command.drone_action= 7
+		self.node.pub_keyboard_command.publish(self.node.msg_keyboard_command) 
