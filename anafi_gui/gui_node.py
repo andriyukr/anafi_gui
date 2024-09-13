@@ -32,7 +32,7 @@ from anafi_ros_interfaces.srv import PilotedPOI, FlightPlan, FollowMe, Location,
 from anafi_autonomy.msg import KeyboardCommand
 
 class Worker1(QObject):
-	#Creating PyQt Signal 
+	#Creating PyQt Signal to emit Pic
 	ImageUpdate=pyqtSignal(QImage)
 	
 	def __init__(self,node):
@@ -144,6 +144,9 @@ class AnafiGUI(Node):
 		self.timer_thread = Thread(target=self.parameters_callback)
 		self.timer_thread.start()
 
+		self.timer_thread2 = Thread(target=self.set_parameters_callback)
+		self.timer_thread2.start()
+
 	def parameters_callback(self):
 		while rclpy.ok():
 			req = GetParameters.Request()
@@ -198,8 +201,14 @@ class AnafiGUI(Node):
 			self.node.get_logger()
 			self.ui.arm_disarm_button.setText("Disarm" if armed else "Arm") #sets the Text
 			self.interate_more_than_once=True
-			
+			#print(self.ui.camera_autorecord.isChecked())
 			time.sleep(0.01)
+
+	def set_parameters_callback(self):
+		while rclpy.ok():
+			print(self.ui.parameter_autorecord.checkBox.toggled.connect(self.ui.parameter_autorecord.checkBox.isChecked))
+			#print("hi")
+		time.sleep(100)
 		
 	def set_ui(self, ui):
 		self.ui = ui
@@ -449,19 +458,21 @@ class MainWindow(QtWidgets.QMainWindow):
 	def ModelUpdateSlot(self):
 		if self.node.drone_model=="ai":
 			self.ButtonList=["RGB","Disparity"]
+			self.CallbackDict={"RGB":self.rgb_callback,"Disparity":self.disparity_callback}
 		elif (self.node.drone_model=="thermal") or (self.node.drone_model=="usa"):
+			self.CallbackDict={"RGB":self.rgb_callback,"Thermal":self.thermal_callback,"Blended":self.blended_callback}
 			self.ButtonList=["RGB","Thermal","Blended"]
 		else:
 			self.ButtonList=[]
 
 		if len(self.ButtonList)>0:
+			#generate buttons
 			for i in self.ButtonList:
-				EnhancedButton(parent=self.node.ui.vstream_gb, label=i, fixed_size=(60, 25), layout=self.node.ui.video_stream_hl, property_class="vsbutton")
-			
+				EnhancedButton(parent=self.node.ui.vstream_gb, label=i, fixed_size=(60, 25), layout=self.node.ui.video_stream_hl, property_class="vsbutton",callback_function=self.CallbackDict[i])
 	
+			self.node.ui.video_buttons.addStretch()
 			self.node.ui.video_stream_hl.addStretch()
 			self.node.ui.video_buttons.addLayout(self.node.ui.video_stream_hl)
-			self.node.ui.video_buttons.addStretch()
 			self.node.ui.video_widget.setLayout(self.node.ui.video_buttons)
 		if self.node.drone_model != None:
 			self.timer2.stop()
@@ -477,6 +488,34 @@ class MainWindow(QtWidgets.QMainWindow):
 	def keyPressEvent(self, a0: QtGui.QKeyEvent) -> None:
 		self.node.keyboard_event(a0)
 		return super().keyPressEvent(a0)
+
+	def rgb_callback(self):
+		req = SetParameters.Request()
+		if (self.node.drone_model=="usa") or (self.node.drone_model=="thermal"):
+			req.parameters = [Parameter(name='camera/thermal/rendering', value=ParameterValue(type=ParameterType.PARAMETER_INTEGER, integer_value=0))]
+		elif (self.node.drone_model=="ai"):
+			req.parameters = [Parameter(name='camera/stereo/disparity_map', value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=False))]
+		future = self.node.set_anafi_parameters_client.call_async(req)
+		print("RGB")
+
+	def disparity_callback(self):
+		req = SetParameters.Request()
+		req.parameters = [Parameter(name='camera/stereo/disparity_map', value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=True))]
+		future = self.node.set_anafi_parameters_client.call_async(req)
+		print("Disparity")
+
+	def thermal_callback(self):
+		req = SetParameters.Request()
+		req.parameters = [Parameter(name='camera/thermal/rendering', value=ParameterValue(type=ParameterType.PARAMETER_INTEGER, integer_value=1))]
+		future = self.node.set_anafi_parameters_client.call_async(req)
+		print("Thermal")
+
+	def blended_callback(self):
+		req = SetParameters.Request()
+		req.parameters = [Parameter(name='camera/thermal/rendering', value=ParameterValue(type=ParameterType.PARAMETER_INTEGER, integer_value=2))]
+		future = self.node.set_anafi_parameters_client.call_async(req)
+		print("Blended")
+	
 
 
 def main(args=None):
