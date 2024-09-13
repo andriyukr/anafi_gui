@@ -30,10 +30,17 @@ This package has been tested with **python3** in **ROS2 Humble**/**Ubuntu 22.04*
 To build from source, clone the latest version from this repository into your ROS2 workspace and build the package using:
 
     cd ~/ros2_ws/src
-    git clone -b ros2 https://github.com/andriyukr/anafi_gui.git
+    git clone https://github.com/andriyukr/anafi_gui.git
     sudo chmod -R 777 anafi_gui/
     cd ..
     colcon build
+    source install/setup.bash
+
+## Usage
+
+To launch the GUI:
+
+    ros2 launch anafi_gui anafi_gui_launch.py
 
 **Troubleshooting**
 
@@ -42,7 +49,7 @@ To build from source, clone the latest version from this repository into your RO
 
 Install `PyQt6`:
 
-    python3 pip install PyQt6
+    pip install PyQt6
 </details>
 
 <details> 
@@ -52,9 +59,3 @@ Install `libxcb-cursor0`:
 
     sudo apt install libxcb-cursor0
 </details>
-
-## Usage
-
-To launch the GUI:
-
-    ros2 launch anafi_gui anafi_gui_launch.py
