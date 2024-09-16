@@ -20,10 +20,6 @@ This package has been tested with **python3** in **ROS2 Humble**/**Ubuntu 22.04*
 - [anafi_ros](https://github.com/andriyukr/anafi_ros) - ROS bridge for Parrot Olympe SDK
 
 - [anafi_autonomy](https://github.com/andriyukr/anafi_autonomy) - ROS package for Parrot ANAFI drone navigation
-      
-- (optional) [xterm](https://invisible-island.net/xterm/xterm.html) - terminal emulator:
-
-      sudo apt-get install xterm
 
 ### Build
 
@@ -38,9 +34,15 @@ To build from source, clone the latest version from this repository into your RO
 
 ## Usage
 
-To launch the GUI:
+To control the drone,
 
-    ros2 launch anafi_gui anafi_gui_launch.py
+1. To connect to the drone, in the terminal 1, run:
+
+       ros2 launch anafi_autonomy anafi_autonomy_launch.py
+
+1. To launch the GUI, in the terminal 2, run:
+
+       ros2 launch anafi_gui anafi_gui_launch.py
 
 **Troubleshooting**
 
