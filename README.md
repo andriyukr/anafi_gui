@@ -32,6 +32,10 @@ To build from source, clone the latest version from this repository into your RO
     colcon build
     source install/setup.bash
 
+or simply run this single line:
+
+    cd ~/ros2_ws/src ; git clone https://github.com/andriyukr/anafi_gui.git ; sudo chmod -R 777 anafi_gui/ ; cd .. ; colcon build ; source install/setup.bash
+
 ## Usage
 
 To control the drone,
